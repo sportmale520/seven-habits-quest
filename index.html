@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>🌌 心淵：選擇 — 實踐七個習慣互動遊戲</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    
+    <!-- 1. 震撼過場動畫視窗 (Intro View) -->
+    <div id="intro-view" class="view active">
+      <div class="intro-container">
+        <!-- 投影片背景層 -->
+        <div id="intro-slides">
+          <!-- 會由 JS 動態生成與切換投影片 -->
+        </div>
+        
+        <!-- 過場字幕 -->
+        <div id="intro-subtitles">
+          <div class="subtitle-text"></div>
+        </div>
+
+        <!-- 開頭大字 (心淵：選擇) -->
+        <div id="intro-title-screen" class="hidden">
+          <div class="title-glow">心淵：選擇</div>
+          <div class="subtitle-glow">實踐七個習慣任務</div>
+        </div>
+
+        <!-- 畫面閃爍遮罩 -->
+        <div id="flash-overlay"></div>
+      </div>
+
+      <!-- 控制按鈕層 (固定在上方區域) -->
+      <div class="intro-controls">
+        <button id="mute-btn" class="control-btn" title="切換靜音">🔇 關聲音</button>
+        <button id="skip-btn" class="control-btn" title="跳過動畫">跳過 ▶</button>
+      </div>
+    </div>
+
+    <!-- 2. 地圖選擇視窗 (Map View) -->
+    <div id="map-view" class="view">
+      <!-- 地圖標頭 -->
+      <div id="map-header">
+        <button id="lobby-btn" class="header-btn" onclick="location.href='/games'">🏠 大廳</button>
+        <div class="header-title-container">
+          <span class="map-subtitle">習慣一 ‧ 主動積極</span>
+          <h2 class="map-title">傀儡古神 ‧ 他答</h2>
+        </div>
+        <div class="header-placeholder"></div>
+      </div>
+
+      <!-- 關卡選擇網格 -->
+      <div id="level-grid-container">
+        <div id="level-grid">
+          <!-- 會由 JS 動態生成 15 個關卡格子 -->
+        </div>
+      </div>
+
+      <!-- 地圖底部署名與引言 -->
+      <div id="map-footer">
+        <div class="quote">「在刺激與回應之間，存在著我們的選擇空間。」</div>
+        <div class="chapter-hint">1 序幕 | 2-5 校園 | 6-9 家裡 | 10-12 深夜與同儕 | 13 神器之間 | 14 風暴將至 | 15 決戰古神</div>
+      </div>
+    </div>
+
+    <!-- 3. 遊戲挑戰視窗 (Stage View) -->
+    <div id="stage-view" class="view">
+      <!-- 關卡頂部 HUD -->
+      <div id="stage-header">
+        <button id="stage-back-btn" class="hud-btn">← 放棄</button>
+        <div class="hud-center">
+          <span id="stage-level-name">載入中...</span>
+          <div class="progress-bar-container">
+            <div id="stage-progress-bar"></div>
+          </div>
+          <span id="stage-progress-text">1 / 2</span>
+        </div>
+        <div class="hud-right">
+          <span class="energy-icon">⚡</span>
+          <span id="energy-val">4</span>
+          <span class="energy-max">/4</span>
+        </div>
+      </div>
+
+      <!-- 遊戲場景背景 (利用 CSS backgroud-image 與玻璃卡片重疊) -->
+      <div id="stage-scene-bg"></div>
+
+      <!-- 核心故事對白卡片 (Glassmorphism) -->
+      <div id="dialog-card">
+        <div id="dialog-content">
+          載入對白中...
+        </div>
+      </div>
+
+      <!-- 選項按鈕區 -->
+      <div id="choice-container">
+        <!-- 會由 JS 動態生成選項按鈕 -->
+      </div>
+
+      <!-- 劍靈反饋彈出層 (Spirit Feedback) -->
+      <div id="spirit-feedback" class="feedback-overlay hidden">
+        <div class="feedback-card">
+          <div class="feedback-header">
+            <span class="spirit-avatar">🗡️</span>
+            <h3>劍靈的啟示</h3>
+          </div>
+          <div id="feedback-text">
+            這是反饋內容...
+          </div>
+          <div id="feedback-energy-change">
+            ⚡ +2
+          </div>
+          <button id="feedback-next-btn" class="primary-btn">繼續</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. 關卡詳情彈出模組 (Level Detail Modal) -->
+    <div id="level-detail-modal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <div id="modal-level-num">第 1 關</div>
+        <h3 id="modal-level-title">關卡名稱</h3>
+        <div class="modal-divider"></div>
+        <p id="modal-level-desc">關卡描述載入中...</p>
+        <div class="modal-meta">
+          <span>👹 本關守護：<strong id="modal-level-boss">古神「他答」之影</strong></span>
+        </div>
+        <div class="modal-actions">
+          <button id="modal-start-btn" class="primary-btn">開始挑戰</button>
+          <button id="modal-close-btn" class="secondary-btn">返回</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. 遊戲結算模組 (Result Modal) -->
+    <div id="result-modal" class="modal-overlay hidden">
+      <div class="modal-card result-card">
+        <div class="result-icon-container">
+          <span id="result-emoji">🎉</span>
+        </div>
+        <h2 id="result-title">挑戰成功</h2>
+        <div id="result-stars" class="stars-container">
+          <!-- ⭐️ ⭐️ ⭐️ 星星渲染 -->
+        </div>
+        <p id="result-desc">你成功克制了消極情緒，做出了主動積極的選擇！</p>
+        <div id="result-energy-status">
+          剩餘心智能量：<span id="result-energy-val">4</span> / 4
+        </div>
+        <div class="modal-actions vertical-actions">
+          <button id="result-next-btn" class="primary-btn">挑戰下一關</button>
+          <button id="result-retry-btn" class="secondary-btn">重新挑戰</button>
+          <button id="result-map-btn" class="secondary-btn">返回地圖</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 引入邏輯腳本 -->
+  <script src="app.js"></script>
+</body>
+</html>
