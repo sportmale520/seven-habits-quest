@@ -1,0 +1,886 @@
+/* 🌌 心淵：選擇 — 核心設計系統樣式表 (CSS) */
+
+:root {
+  --bg-color: #0d0e12;
+  --panel-bg: rgba(20, 22, 30, 0.75);
+  --border-color: rgba(255, 255, 255, 0.08);
+  --primary-color: #ff2b56;     /* 烈焰紅，象徵深淵與掙扎 */
+  --primary-glow: rgba(255, 43, 86, 0.4);
+  --proactive-color: #00f5d4;   /* 霓虹綠，象徵主動與生機 */
+  --proactive-glow: rgba(0, 245, 212, 0.4);
+  --accent-color: #f7b801;      /* 琥珀金，象徵智慧與星級 */
+  --accent-glow: rgba(247, 184, 1, 0.4);
+  --text-main: #f8f9fa;
+  --text-muted: #8d92a9;
+  
+  --font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* ──────────────── 0. 全域與重設樣式 ──────────────── */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+body, html {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  font-family: var(--font-family);
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background: radial-gradient(circle at center, #1b1c26 0%, #0d0e12 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* ──────────────── 1. 視窗排版與切換 ──────────────── */
+.view {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.view.active {
+  opacity: 1;
+  pointer-events: all;
+  z-index: 2;
+}
+
+/* 通用按鈕樣式 */
+button {
+  font-family: var(--font-family);
+  border: none;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* ──────────────── 2. 震撼過場動畫視窗 (Intro View) ──────────────── */
+#intro-view {
+  background-color: #000;
+  justify-content: center;
+  align-items: center;
+}
+
+.intro-container {
+  width: 100%;
+  max-width: 800px;
+  aspect-ratio: 16 / 9.5;
+  background-color: #030305;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 50px rgba(0,0,0,0.8), 0 0 20px rgba(255, 43, 86, 0.1);
+}
+
+#intro-slides {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+}
+
+.intro-slide {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  transition: opacity 1.2s ease-in-out;
+  transform: scale(1.03);
+}
+
+.intro-slide.active {
+  opacity: 1;
+  animation: kenburns 6.5s ease-in-out forwards;
+}
+
+#intro-subtitles {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  padding: 24px 20px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0) 100%);
+  display: flex;
+  justify-content: center;
+  z-index: 10;
+}
+
+.subtitle-text {
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: #fff;
+  text-align: center;
+  line-height: 1.8;
+  max-width: 85%;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8), 0 0 10px rgba(255, 43, 86, 0.3);
+  letter-spacing: 1.5px;
+  min-height: 2.8rem;
+}
+
+#intro-title-screen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(5, 5, 8, 0.8);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 12;
+  transition: opacity 0.8s ease;
+}
+
+.title-glow {
+  font-size: 3.2rem;
+  font-weight: 900;
+  letter-spacing: 6px;
+  background: linear-gradient(135deg, #fff 30%, var(--primary-color) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 15px;
+  filter: drop-shadow(0 0 15px var(--primary-glow));
+  animation: pulse-glow 2s infinite alternate;
+}
+
+.subtitle-glow {
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 4px;
+  text-shadow: 0 0 8px rgba(0,0,0,0.8);
+}
+
+.intro-controls {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  right: 20px;
+  display: flex;
+  justify-content: space-between;
+  z-index: 15;
+  pointer-events: none;
+}
+
+.control-btn {
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  backdrop-filter: blur(5px);
+}
+
+.control-btn:active {
+  background: var(--primary-color);
+  border-color: transparent;
+  transform: scale(0.95);
+}
+
+/* ──────────────── 3. 地圖選擇視窗 (Map View) ──────────────── */
+#map-view {
+  background: radial-gradient(circle at center, #171822 0%, var(--bg-color) 100%);
+}
+
+#map-header {
+  padding: 24px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-color);
+  background: rgba(13, 14, 18, 0.85);
+  backdrop-filter: blur(10px);
+  z-index: 10;
+}
+
+.header-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.header-btn:hover {
+  background: var(--border-color);
+}
+
+.header-title-container {
+  text-align: center;
+}
+
+.map-subtitle {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--primary-color);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.map-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: 1px;
+}
+
+.header-placeholder {
+  width: 70px;
+}
+
+#level-grid-container {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 30px 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#level-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 15px;
+  width: 100%;
+  max-width: 600px;
+}
+
+/* 關卡格子 */
+.level-cell {
+  aspect-ratio: 1 / 1.15;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: 1.25rem;
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.165, 0.84, 0.44, 1);
+  box-shadow: inset 0 0 10px rgba(255,255,255,0.02);
+}
+
+/* 解鎖狀態 */
+.level-cell.unlocked {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  cursor: pointer;
+}
+
+.level-cell.unlocked:active {
+  transform: scale(0.95);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* 當前進度關卡 (脈動發光) */
+.level-cell.active-progress {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 15px var(--primary-glow);
+  animation: pulse-active 1.5s infinite alternate;
+}
+
+/* 鎖定狀態 */
+.level-cell.locked {
+  background: rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.03);
+  color: rgba(255,255,255,0.15);
+  cursor: not-allowed;
+}
+
+.level-cell.locked::after {
+  content: '🔒';
+  font-size: 0.8rem;
+  margin-top: 5px;
+}
+
+/* 通關星星 */
+.cell-stars {
+  display: flex;
+  gap: 2px;
+  margin-top: 6px;
+  height: 10px;
+}
+
+.cell-star {
+  font-size: 8px;
+  color: var(--accent-color);
+  text-shadow: 0 0 4px var(--accent-glow);
+}
+
+.cell-star.empty {
+  color: rgba(255, 255, 255, 0.1);
+  text-shadow: none;
+}
+
+#map-footer {
+  padding: 20px;
+  background: rgba(13, 14, 18, 0.85);
+  border-top: 1px solid var(--border-color);
+  text-align: center;
+}
+
+#map-footer .quote {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-bottom: 8px;
+}
+
+#map-footer .chapter-hint {
+  font-size: 0.75rem;
+  color: var(--primary-color);
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+/* ──────────────── 4. 遊戲挑戰視窗 (Stage View) ──────────────── */
+#stage-view {
+  background: #000;
+}
+
+#stage-header {
+  height: 65px;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(13, 14, 18, 0.8);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border-color);
+  z-index: 10;
+  position: relative;
+}
+
+.hud-btn {
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.hud-btn:active {
+  color: #fff;
+}
+
+.hud-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-grow: 1;
+  padding: 0 20px;
+}
+
+#stage-level-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.progress-bar-container {
+  width: 100px;
+  height: 4px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px;
+  margin: 4px 0;
+  overflow: hidden;
+}
+
+#stage-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: var(--primary-color);
+  box-shadow: 0 0 6px var(--primary-glow);
+  transition: width 0.4s ease;
+}
+
+#stage-progress-text {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.hud-right {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 43, 86, 0.1);
+  border: 1px solid rgba(255, 43, 86, 0.2);
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.energy-icon {
+  margin-right: 4px;
+  animation: bounce-slow 2s infinite;
+}
+
+#energy-val {
+  font-weight: 800;
+  color: #fff;
+  font-size: 1.1rem;
+}
+
+.energy-max {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* 場景背景 */
+#stage-scene-bg {
+  flex-grow: 1;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+#stage-scene-bg::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to bottom, rgba(13, 14, 18, 0.3) 0%, rgba(13, 14, 18, 0.92) 85%);
+  pointer-events: none;
+}
+
+/* 核心故事對白卡片 (Glassmorphism) */
+#dialog-card {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 210px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  z-index: 8;
+  height: 140px;
+  display: flex;
+  align-items: center;
+}
+
+#dialog-content {
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--text-main);
+  overflow-y: auto;
+  max-height: 100%;
+  width: 100%;
+}
+
+/* 選項按鈕區 */
+#choice-container {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 8;
+}
+
+.choice-btn {
+  width: 100%;
+  padding: 14px 20px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-align: left;
+  line-height: 1.5;
+  box-shadow: inset 0 0 10px rgba(255,255,255,0.01);
+}
+
+.choice-btn:active {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--proactive-color);
+  box-shadow: 0 0 10px var(--proactive-glow);
+  transform: translateY(-2px);
+}
+
+/* ──────────────── 5. 彈出層 & 模組樣式 (Modals) ──────────────── */
+.modal-overlay, .feedback-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  transition: opacity 0.3s ease;
+}
+
+.modal-overlay.hidden, .feedback-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.modal-card, .feedback-card {
+  width: 100%;
+  max-width: 400px;
+  background: rgba(25, 28, 38, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  padding: 30px 24px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+  text-align: center;
+  transform: scale(0.95);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.modal-overlay:not(.hidden) .modal-card,
+.feedback-overlay:not(.hidden) .feedback-card {
+  transform: scale(1);
+}
+
+#modal-level-num {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+#modal-level-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 15px;
+}
+
+.modal-divider {
+  width: 40px;
+  height: 3px;
+  background: var(--primary-color);
+  margin: 0 auto 20px auto;
+  border-radius: 2px;
+}
+
+#modal-level-desc {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  line-height: 1.7;
+  margin-bottom: 24px;
+}
+
+.modal-meta {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 30px;
+}
+
+.modal-meta strong {
+  color: #fff;
+}
+
+/* 按鈕群組 */
+.modal-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.vertical-actions {
+  flex-direction: column;
+}
+
+.primary-btn {
+  flex-grow: 1;
+  background: linear-gradient(135deg, var(--primary-color) 0%, #db1f47 100%);
+  color: #fff;
+  padding: 14px 20px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 1rem;
+  box-shadow: 0 4px 15px var(--primary-glow);
+}
+
+.primary-btn:active {
+  transform: scale(0.97);
+  box-shadow: 0 2px 8px var(--primary-glow);
+}
+
+.secondary-btn {
+  flex-grow: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-main);
+  padding: 14px 20px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.secondary-btn:active {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ──────────────── 6. 劍靈反饋面板 (Spirit Feedback) ──────────────── */
+.feedback-card {
+  border-color: rgba(0, 245, 212, 0.2);
+}
+
+.feedback-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 15px;
+}
+
+.spirit-avatar {
+  font-size: 1.5rem;
+  animation: wiggle 2s infinite;
+}
+
+.feedback-header h3 {
+  font-size: 1.2rem;
+  color: var(--proactive-color);
+  font-weight: 700;
+}
+
+#feedback-text {
+  font-size: 1.05rem;
+  line-height: 1.8;
+  color: var(--text-main);
+  margin-bottom: 20px;
+}
+
+#feedback-energy-change {
+  font-size: 1.8rem;
+  font-weight: 900;
+  margin-bottom: 24px;
+  animation: pulse-active 1s infinite alternate;
+}
+
+#feedback-energy-change.gain {
+  color: var(--proactive-color);
+  text-shadow: 0 0 10px var(--proactive-glow);
+}
+
+#feedback-energy-change.drain {
+  color: var(--primary-color);
+  text-shadow: 0 0 10px var(--primary-glow);
+}
+
+/* ──────────────── 7. 結算畫面 (Result Modal) ──────────────── */
+.result-card {
+  max-width: 420px;
+}
+
+.result-icon-container {
+  font-size: 3.5rem;
+  margin-bottom: 15px;
+}
+
+#result-title {
+  font-size: 1.8rem;
+  font-weight: 900;
+  margin-bottom: 15px;
+  letter-spacing: 1px;
+}
+
+.stars-container {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.result-star {
+  font-size: 2.2rem;
+  color: var(--accent-color);
+  text-shadow: 0 0 15px var(--accent-glow);
+  opacity: 0;
+}
+
+.result-star.pop {
+  animation: star-pop-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.result-star.empty {
+  color: rgba(255, 255, 255, 0.15);
+  text-shadow: none;
+}
+
+#result-desc {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 20px;
+  padding: 0 15px;
+}
+
+#result-energy-status {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: 30px;
+}
+
+#result-energy-status span {
+  font-weight: 800;
+  color: #fff;
+}
+
+/* ──────────────── 8. 動畫特效定義 ──────────────── */
+@keyframes kenburns {
+  0% {
+    transform: scale(1.02) translate(0, 0);
+  }
+  100% {
+    transform: scale(1.1) translate(-1%, -1%);
+  }
+}
+
+@keyframes pulse-glow {
+  0% {
+    filter: drop-shadow(0 0 8px rgba(255, 43, 86, 0.3));
+  }
+  100% {
+    filter: drop-shadow(0 0 20px rgba(255, 43, 86, 0.7));
+  }
+}
+
+@keyframes pulse-active {
+  0% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes star-pop-in {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  80% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-8deg); }
+  75% { transform: rotate(8deg); }
+}
+
+@keyframes bounce-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+/* 震動特效 (相機抖動) */
+.shake {
+  animation: shake-anim 0.4s ease-in-out;
+}
+
+@keyframes shake-anim {
+  0%, 100% { transform: translate(0, 0); }
+  10%, 30%, 50%, 70%, 90% { transform: translate(-4px, 2px); }
+  20%, 40%, 60%, 80% { transform: translate(4px, -2px); }
+}
+
+/* 閃爍特效 */
+.flash-active {
+  animation: flash-anim 0.3s ease-out;
+}
+
+@keyframes flash-anim {
+  0% { opacity: 0; }
+  50% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* 輔助隱藏類 */
+.hidden {
+  display: none !important;
+}
+
+/* ──────────────── 9. 響應式佈局適配 ──────────────── */
+@media (max-width: 480px) {
+  #level-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .title-glow {
+    font-size: 2.4rem;
+  }
+  #dialog-card {
+    bottom: 220px;
+    height: 160px;
+    left: 15px;
+    right: 15px;
+  }
+  #choice-container {
+    bottom: 20px;
+    left: 15px;
+    right: 15px;
+  }
+  .choice-btn {
+    padding: 12px 16px;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-height: 600px) {
+  #dialog-card {
+    height: 110px;
+    bottom: 170px;
+    padding: 12px 15px;
+  }
+  #choice-container {
+    bottom: 15px;
+    gap: 8px;
+  }
+  .choice-btn {
+    padding: 10px 14px;
+  }
+}
