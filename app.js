@@ -881,7 +881,6 @@ class AudioEngine {
     osc.stop(now + 1.2);
   }
 
-  // 通關音樂
   playSuccess() {
     if (!this.enabled || !this.ctx) return;
     const now = this.ctx.currentTime;
@@ -902,7 +901,6 @@ class AudioEngine {
       osc.stop(now + idx * 0.1 + 0.4);
     });
   }
-
   // 失敗音樂
   playFailure() {
     if (!this.enabled || !this.ctx) return;
@@ -966,97 +964,136 @@ const GameState = {
   }
 };
 
-// ──────────────── 4. 過場動畫控制 ────────────────
 const IntroController = {
   currentIndex: 0,
   timeline: [
-    { image: 'intro_00.jpg', text: '第一層：拖延。心智被無形之絲纏繞，沉落深淵。', sound: 'ambient', duration: 4500 },
-    { image: 'intro_05.jpg', text: '第一關：拖延之神「翳」之影，在黑暗中巍然聳立。', sound: 'rumble', duration: 4500 },
-    { image: 'intro_10.jpg', text: '無數人偶跪倒在巨大鐘擺之下，高唱著：「都是別人害的...」', sound: 'rumble', duration: 5000 },
-    { image: 'intro_15.jpg', text: '在此絕境，唯有內心的劍魂覺醒，方能斬斷束縛！', sound: 'swordChime', duration: 4500 },
-    { image: 'intro_30.jpg', text: '「看清你的影響圈。你不是傀儡，你有重新選擇的權利！」', sound: 'swordChime', duration: 4500 },
-    { image: 'intro_40.jpg', text: '「我選擇—— 現在！斬！」', sound: 'slash', duration: 3500 },
-    { image: 'intro_50.jpg', text: '心淵七層已然展開。踏入深淵，做出屬於你的選擇吧。', sound: 'ambient', duration: 5000 }
+    { time: 0.0, text: '第一層：拖延。心智被無形之絲纏繞，沉落深淵。', sound: 'ambient' },
+    { time: 4.5, text: '第一關：拖延之神「翳」之影，在黑暗中巍然聳立。', sound: 'rumble' },
+    { time: 9.0, text: '無數人偶跪倒在巨大鐘擺之下，高唱著：「都是別人害的...」', sound: 'rumble' },
+    { time: 14.0, text: '在此絕境，唯有內心的劍魂覺醒，方能斬斷束縛！', sound: 'swordChime' },
+    { time: 18.5, text: '「看清你的影響圈。你不是傀儡，你有重新選擇的權利！」', sound: 'swordChime' },
+    { time: 23.0, text: '「我選擇—— 現在！斬！」', sound: 'slash' },
+    { time: 26.5, text: '心淵七層已然展開。踏入深淵，做出屬於你的選擇吧。', sound: 'ambient' }
   ],
   timer: null,
+  videoEl: null,
+  checkInterval: null,
+  firedIndices: new Set(),
 
   start() {
     this.currentIndex = 0;
-    this.showSlide();
+    this.firedIndices.clear();
+    this.videoEl = document.getElementById('intro-video');
+    
+    if (this.videoEl) {
+      this.videoEl.currentTime = 0;
+      this.videoEl.muted = true;
+      this.videoEl.play().catch(e => {
+        console.warn("Video playback blocked by browser", e);
+      });
+      
+      this.videoEl.onended = () => {
+        this.showTitleScreen();
+      };
+    }
+    
+    // 每 100ms 檢查一次影片進度，觸發音訊與字幕
+    this.checkInterval = setInterval(() => {
+      this.tick();
+    }, 100);
+
     audio.playCurrentTrack();
   },
 
-  showSlide() {
-    if (this.currentIndex >= this.timeline.length) {
-      this.showTitleScreen();
-      return;
+  tick() {
+    if (!this.videoEl) return;
+    const t = this.videoEl.currentTime;
+
+    for (let i = 0; i < this.timeline.length; i++) {
+      const trigger = this.timeline[i];
+      if (t >= trigger.time && !this.firedIndices.has(i)) {
+        this.firedIndices.add(i);
+        this.currentIndex = i;
+        this.triggerEvent(trigger);
+      }
     }
 
-    const slideData = this.timeline[this.currentIndex];
-    const container = document.getElementById('intro-slides');
-    
-    // 清空並生成投影片
-    container.innerHTML = `
-      <div class="intro-slide active" style="background-image: url('assets/images/${slideData.image}');"></div>
-    `;
+    // 當影片播放接近尾聲 (34.0秒)，自動跳至標題畫面
+    if (t >= 34.0) {
+      this.showTitleScreen();
+    }
+  },
 
-    // 設定字幕
+  triggerEvent(data) {
     const subtitle = document.querySelector('#intro-subtitles .subtitle-text');
-    subtitle.innerHTML = '';
-    
-    // 觸發音效
-    if (slideData.sound === 'rumble') {
+    if (subtitle) {
+      subtitle.innerHTML = '';
+      let charIdx = 0;
+      const typeWriter = () => {
+        if (this.currentIndex === this.timeline.indexOf(data) && charIdx < data.text.length) {
+          subtitle.innerHTML += data.text.charAt(charIdx);
+          charIdx++;
+          setTimeout(typeWriter, 35);
+        }
+      };
+      typeWriter();
+    }
+
+    if (data.sound === 'rumble') {
       audio.playRumble();
       document.querySelector('.intro-container').classList.add('shake');
       setTimeout(() => document.querySelector('.intro-container').classList.remove('shake'), 1000);
-    } else if (slideData.sound === 'swordChime') {
+    } else if (data.sound === 'swordChime') {
       audio.playSwordChime();
-    } else if (slideData.sound === 'slash') {
+    } else if (data.sound === 'slash') {
       audio.playSlash();
       const flash = document.getElementById('flash-overlay');
-      flash.classList.add('flash-active');
-      setTimeout(() => flash.classList.remove('flash-active'), 500);
+      if (flash) {
+        flash.classList.add('flash-active');
+        setTimeout(() => flash.classList.remove('flash-active'), 500);
+      }
       document.querySelector('.intro-container').classList.add('shake');
       setTimeout(() => document.querySelector('.intro-container').classList.remove('shake'), 1000);
     }
-
-    // 打字機效果渲染字幕
-    let charIdx = 0;
-    const typeWriter = () => {
-      if (charIdx < slideData.text.length) {
-        subtitle.innerHTML += slideData.text.charAt(charIdx);
-        charIdx++;
-        setTimeout(typeWriter, 40);
-      }
-    };
-    typeWriter();
-
-    // 排程下一張
-    this.timer = setTimeout(() => {
-      this.currentIndex++;
-      this.showSlide();
-    }, slideData.duration);
   },
 
   showTitleScreen() {
-    const titleScreen = document.getElementById('intro-title-screen');
-    titleScreen.classList.remove('hidden');
-    audio.playSwordChime();
+    if (this.checkInterval) {
+      clearInterval(this.checkInterval);
+      this.checkInterval = null;
+    }
     
-    // 點擊任意處進入地圖
-    titleScreen.onclick = () => {
-      this.finish();
-    };
+    const titleScreen = document.getElementById('intro-title-screen');
+    if (titleScreen && titleScreen.classList.contains('hidden')) {
+      titleScreen.classList.remove('hidden');
+      audio.playSwordChime();
+      
+      titleScreen.onclick = () => {
+        this.finish();
+      };
 
-    // 如果玩家5秒內沒點，自動進入
-    this.timer = setTimeout(() => {
-      this.finish();
-    }, 5000);
+      this.timer = setTimeout(() => {
+        this.finish();
+      }, 5000);
+    }
   },
 
   finish() {
     clearTimeout(this.timer);
-    document.getElementById('intro-title-screen').classList.add('hidden');
+    if (this.checkInterval) {
+      clearInterval(this.checkInterval);
+      this.checkInterval = null;
+    }
+    
+    if (this.videoEl) {
+      this.videoEl.pause();
+      this.videoEl.onended = null;
+    }
+    
+    const titleScreen = document.getElementById('intro-title-screen');
+    if (titleScreen) {
+      titleScreen.classList.add('hidden');
+    }
     switchView('map');
   }
 };
