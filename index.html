@@ -160,6 +160,70 @@
       </div>
     </div>
 
+    <!-- 6. 浮動音樂設定按鈕 (Floating Music Button) -->
+    <button id="floating-music-btn" class="floating-btn hidden" title="音訊與音樂設定">🎵</button>
+
+    <!-- 7. 科幻音樂設定模組 (Music Settings Modal) -->
+    <div id="music-settings-modal" class="modal-overlay hidden">
+      <div class="modal-card music-card">
+        <div class="modal-header">
+          <h3>🌌 科幻音樂設定</h3>
+          <button id="music-modal-close" class="close-x-btn">&times;</button>
+        </div>
+        
+        <!-- 音波動訊 (Audio Waves Visualizer) -->
+        <div class="music-wave-container">
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+          <div class="bar"></div>
+        </div>
+
+        <!-- 主音量控制 -->
+        <div class="music-control-group">
+          <label for="music-volume-slider">🔊 播放音量</label>
+          <input type="range" id="music-volume-slider" min="0" max="1" step="0.05" value="0.5">
+        </div>
+
+        <!-- 音軌選擇 -->
+        <div class="music-control-group">
+          <label for="music-track-select">🎵 選擇背景音樂</label>
+          <select id="music-track-select">
+            <option value="assets/audio/synthwave_montage.mp3" selected>🚀 內建 1 - Synthwave Montage (推薦)</option>
+            <option value="assets/audio/retro_night_drive.mp3">🌌 內建 2 - Retro Night Drive (推薦)</option>
+            <option value="synth">🎹 復古合成器節奏 (Web Audio Synth)</option>
+            <option value="custom">📤 使用上傳/自訂音樂...</option>
+          </select>
+        </div>
+
+        <!-- 自訂上傳區 -->
+        <div id="music-upload-section" class="music-control-group hidden">
+          <label>📤 上傳 Suno AI / MP3 檔案</label>
+          <div class="file-input-wrapper">
+            <button class="file-btn" onclick="document.getElementById('music-file-input').click()">選擇檔案</button>
+            <input type="file" id="music-file-input" accept="audio/*" class="hidden">
+            <span id="music-file-name" class="file-name-hint">尚未選擇檔案</span>
+          </div>
+          <p class="section-hint">支援所有 MP3/WAV 格式，由 Suno 生成或您的自訂音樂。</p>
+        </div>
+
+        <!-- 自訂網址區 -->
+        <div id="music-url-section" class="music-control-group hidden">
+          <label for="music-url-input">🔗 貼上自訂音樂網址 (Suno CDN)</label>
+          <div class="url-input-wrapper">
+            <input type="text" id="music-url-input" placeholder="https://cdn1.suno.ai/...mp3">
+            <button id="music-url-apply" class="primary-btn mini-btn">套用</button>
+          </div>
+        </div>
+
+        <!-- 播放與暫停控制 -->
+        <div class="music-playback-controls">
+          <button id="music-play-pause-btn" class="primary-btn">暫停播放</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- 引入邏輯腳本 -->
