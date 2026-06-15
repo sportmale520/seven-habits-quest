@@ -409,14 +409,40 @@ const levelsData = [
   }
 ];
 
-// ──────────────── 2. Web Audio API 復古音效合成引擎 ────────────────
+// ──────────────── 2. Web Audio API 復古音效與科幻 Synthwave 電子合成引擎 ────────────────
 class AudioEngine {
   constructor() {
     this.ctx = null;
     this.enabled = true;
-    this.ambientOsc1 = null;
-    this.ambientOsc2 = null;
-    this.ambientGain = null;
+    this.volume = 0.5;
+    this.sfxGain = null;
+    
+    // HTML5 Audio 用於背景音樂 MP3 串流 (Suno AI 或內建)
+    this.audioEl = new Audio();
+    this.audioEl.loop = true;
+    this.audioEl.crossOrigin = "anonymous";
+    this.trackType = 'builtin'; // 'builtin' | 'synth' | 'custom'
+    this.currentTrackSrc = 'assets/audio/synthwave_montage.mp3';
+    this.isAudioElPlaying = false;
+    
+    // Synthwave Sequencer 狀態
+    this.isPlaying = false;
+    this.tempo = 110; // BPM
+    this.lookAhead = 0.1; // 100ms lookahead
+    this.scheduleInterval = 40; // check every 40ms
+    this.nextNoteTime = 0.0;
+    this.step = 0; // 16th note step: 0 to 15
+    this.timerId = null;
+    this.delayNode = null;
+    
+    // 現代科幻和弦進程 (Am - F - C - G)
+    this.chords = [
+      { root: 55,  scale: [220, 261.63, 329.63, 392.00, 440, 523.25, 659.25, 783.99] }, // Am
+      { root: 43.65, scale: [174.61, 220, 261.63, 349.23, 392.00, 440, 523.25, 698.46] }, // F
+      { root: 65.41, scale: [261.63, 329.63, 392.00, 523.25, 587.33, 659.25, 783.99, 1046.5] }, // C
+      { root: 49.00, scale: [196.00, 246.94, 293.66, 392.00, 440.00, 493.88, 587.33, 783.99] }  // G
+    ];
+    this.currentChordIdx = 0;
   }
 
   init() {
@@ -429,84 +455,337 @@ class AudioEngine {
     if (this.ctx && this.ctx.state === 'suspended') {
       this.ctx.resume();
     }
+    
+    // 初始化全域音效 Gain 節點
+    if (this.ctx && !this.sfxGain) {
+      try {
+        this.sfxGain = this.ctx.createGain();
+        this.sfxGain.gain.setValueAtTime(this.volume, this.ctx.currentTime);
+        this.sfxGain.connect(this.ctx.destination);
+      } catch (e) {
+        console.warn("SFX Gain node initialization failed", e);
+      }
+    }
+    
+    // 初始化全域科幻 Delay 迴路 (用於琶音與旋律，輸出接至 sfxGain)
+    if (this.ctx && !this.delayNode) {
+      try {
+        this.delayNode = this.ctx.createDelay(1.0);
+        this.delayNode.delayTime.value = 0.28; // 280ms Echo 延遲
+        
+        const delayGain = this.ctx.createGain();
+        delayGain.gain.value = 0.35; // 35% 反饋
+        
+        this.delayNode.connect(delayGain);
+        delayGain.connect(this.delayNode);
+        this.delayNode.connect(this.sfxGain);
+      } catch (e) {
+        console.warn("Delay node initialization failed", e);
+      }
+    }
+
+    if (this.audioEl) {
+      this.audioEl.volume = this.volume;
+    }
   }
 
   toggleMute() {
     this.enabled = !this.enabled;
     if (!this.enabled) {
-      this.stopAmbient();
+      this.stopCurrentTrack();
     } else {
       this.init();
-      this.playAmbient();
+      this.playCurrentTrack();
     }
     return this.enabled;
   }
 
-  // 1. 播放深淵低吟背景樂 (Ambient hum)
-  playAmbient() {
-    if (!this.enabled) return;
-    this.init();
-    if (this.ambientOsc1) return; // 已經在播放中
-
-    try {
-      const now = this.ctx.currentTime;
-      this.ambientGain = this.ctx.createGain();
-      this.ambientGain.gain.setValueAtTime(0.08, now);
-
-      // 振盪器 1：極低頻鋸齒波
-      this.ambientOsc1 = this.ctx.createOscillator();
-      this.ambientOsc1.type = 'sawtooth';
-      this.ambientOsc1.frequency.setValueAtTime(55, now); // A1
-
-      // 振盪器 2：極低頻三角波 (微幅失諧創造厚重感)
-      this.ambientOsc2 = this.ctx.createOscillator();
-      this.ambientOsc2.type = 'triangle';
-      this.ambientOsc2.frequency.setValueAtTime(55.5, now);
-
-      // 低通濾波器：做出悶悶的深淵感
-      const filter = this.ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(180, now);
-
-      // LFO：緩慢改變濾波器頻率，製造呼吸與波動感
-      const lfo = this.ctx.createOscillator();
-      lfo.type = 'sine';
-      lfo.frequency.setValueAtTime(0.2, now); // 5秒一個循環
-
-      const lfoGain = this.ctx.createGain();
-      lfoGain.gain.setValueAtTime(40, now);
-
-      lfo.connect(lfoGain);
-      lfoGain.connect(filter.frequency);
-      
-      this.ambientOsc1.connect(filter);
-      this.ambientOsc2.connect(filter);
-      filter.connect(this.ambientGain);
-      this.ambientGain.connect(this.ctx.destination);
-
-      lfo.start();
-      this.ambientOsc1.start();
-      this.ambientOsc2.start();
-    } catch (e) {
-      console.warn("Ambient play failed", e);
+  // 設定全域音量
+  setVolume(val) {
+    this.volume = val;
+    if (this.ctx && this.sfxGain) {
+      this.sfxGain.gain.setValueAtTime(val, this.ctx.currentTime);
+    }
+    if (this.audioEl) {
+      this.audioEl.volume = this.enabled ? val : 0;
     }
   }
 
-  stopAmbient() {
-    try {
-      const now = this.ctx ? this.ctx.currentTime : 0;
-      if (this.ambientGain && this.ctx) {
-        this.ambientGain.gain.exponentialRampToValueAtTime(0.001, now + 1.0);
+  // 播放當前設定的背景音樂
+  playCurrentTrack() {
+    this.init();
+    if (!this.enabled) return;
+
+    if (this.trackType === 'synth') {
+      this.startSynthwave();
+    } else {
+      this.stopSynthwave();
+      if (this.audioEl) {
+        // 防止重複載入同一個 src
+        const absoluteSrc = this.currentTrackSrc.startsWith('blob:') ? this.currentTrackSrc : (this.currentTrackSrc.startsWith('http') ? this.currentTrackSrc : window.location.origin + '/' + this.currentTrackSrc);
+        if (this.audioEl.src !== absoluteSrc) {
+          this.audioEl.src = this.currentTrackSrc;
+        }
+        this.audioEl.volume = this.volume;
+        this.audioEl.play()
+          .then(() => {
+            this.isAudioElPlaying = true;
+            updateWaveAnimation(true);
+          })
+          .catch(e => {
+            console.warn("BGM playback failed/blocked:", e);
+          });
       }
-      setTimeout(() => {
-        if (this.ambientOsc1) { this.ambientOsc1.stop(); this.ambientOsc1 = null; }
-        if (this.ambientOsc2) { this.ambientOsc2.stop(); this.ambientOsc2 = null; }
-        this.ambientGain = null;
-      }, 1000);
-    } catch (e) {}
+    }
   }
 
-  // 2. 選單點擊音效
+  // 停止播放背景音樂
+  stopCurrentTrack() {
+    if (this.trackType === 'synth') {
+      this.stopSynthwave();
+    } else {
+      if (this.audioEl) {
+        this.audioEl.pause();
+        this.isAudioElPlaying = false;
+        updateWaveAnimation(false);
+      }
+    }
+  }
+
+  // 更換背景音樂
+  changeTrack(src) {
+    this.stopCurrentTrack();
+    if (src === 'synth') {
+      this.trackType = 'synth';
+    } else {
+      this.trackType = 'builtin'; // 或是 'custom'
+      this.currentTrackSrc = src;
+    }
+    this.playCurrentTrack();
+  }
+
+  // 啟動 Synthwave 樂團
+  startSynthwave() {
+    if (this.isPlaying) return;
+    this.init();
+    if (!this.ctx) return;
+    
+    this.isPlaying = true;
+    this.nextNoteTime = this.ctx.currentTime + 0.05;
+    this.step = 0;
+    this.currentChordIdx = 0;
+    updateWaveAnimation(true);
+    this.scheduler();
+  }
+
+  stopSynthwave() {
+    this.isPlaying = false;
+    if (this.timerId) {
+      clearTimeout(this.timerId);
+      this.timerId = null;
+    }
+    updateWaveAnimation(false);
+  }
+
+  scheduler() {
+    if (!this.isPlaying) return;
+    while (this.nextNoteTime < this.ctx.currentTime + this.lookAhead) {
+      this.scheduleNote(this.step, this.nextNoteTime);
+      this.advanceNote();
+    }
+    this.timerId = setTimeout(() => this.scheduler(), this.scheduleInterval);
+  }
+
+  advanceNote() {
+    const secondsPerBeat = 60.0 / this.tempo;
+    const secondsPer16th = secondsPerBeat / 4.0;
+    
+    this.nextNoteTime += secondsPer16th;
+    this.step = (this.step + 1) % 16;
+    
+    if (this.step === 0) {
+      // 每個小節切換和弦進程
+      this.currentChordIdx = (this.currentChordIdx + 1) % this.chords.length;
+    }
+  }
+
+  scheduleNote(step, time) {
+    if (!this.enabled || !this.ctx) return;
+    
+    const chord = this.chords[this.currentChordIdx];
+    
+    // 1. 科幻八度 Synth Bass (八分音符律動，在偶數 step 播放)
+    if (step % 2 === 0) {
+      let freq = chord.root;
+      if (step === 2 || step === 6 || step === 10 || step === 14) {
+        freq = chord.root * 2;
+      }
+      this.playBass(freq, time);
+    }
+    
+    // 2. 空間琶音主音 Lead (十六分音符，隨科幻旋律音階變化)
+    const pattern = [0, 2, 4, 3, 5, 4, 6, 5, 7, 5, 6, 4, 5, 3, 4, 2];
+    const scaleNoteIdx = pattern[step] % chord.scale.length;
+    const leadFreq = chord.scale[scaleNoteIdx];
+    this.playLead(leadFreq, time);
+    
+    // 3. 復古電子鼓組 (Drum Machine)
+    if (step === 0 || step === 8) {
+      this.playKick(time);
+    }
+    if (step === 4 || step === 12) {
+      this.playSnare(time);
+    }
+    if (step % 4 === 2) {
+      this.playHihat(time);
+    }
+  }
+
+  // --- 樂器合成模組 ---
+
+  // 1. Fat Synth Bass
+  playBass(freq, time) {
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    const filter = this.ctx.createBiquadFilter();
+    
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(freq, time);
+    
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(600, time);
+    filter.frequency.exponentialRampToValueAtTime(120, time + 0.18);
+    
+    gain.gain.setValueAtTime(0.12, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
+    
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.sfxGain || this.ctx.destination);
+    
+    osc.start(time);
+    osc.stop(time + 0.2);
+  }
+
+  // 2. Cosmic Lead
+  playLead(freq, time) {
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    const filter = this.ctx.createBiquadFilter();
+    
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(freq, time);
+    
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(1800, time);
+    filter.frequency.exponentialRampToValueAtTime(500, time + 0.08);
+    
+    gain.gain.setValueAtTime(0.04, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.12);
+    
+    osc.connect(filter);
+    filter.connect(gain);
+    
+    if (this.delayNode) {
+      gain.connect(this.delayNode);
+    }
+    gain.connect(this.sfxGain || this.ctx.destination);
+    
+    osc.start(time);
+    osc.stop(time + 0.12);
+  }
+
+  // 3. Retro Kick
+  playKick(time) {
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(110, time);
+    osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.09);
+    
+    gain.gain.setValueAtTime(0.24, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+    
+    osc.connect(gain);
+    gain.connect(this.sfxGain || this.ctx.destination);
+    
+    osc.start(time);
+    osc.stop(time + 0.1);
+  }
+
+  // 4. White Noise Snare
+  playSnare(time) {
+    const bufferSize = this.ctx.sampleRate * 0.12;
+    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = buffer;
+    
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(900, time);
+    
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.08, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.12);
+    
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.sfxGain || this.ctx.destination);
+    
+    noise.start(time);
+    noise.stop(time + 0.12);
+    
+    // Tom
+    const osc = this.ctx.createOscillator();
+    const oscGain = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(150, time);
+    osc.frequency.exponentialRampToValueAtTime(70, time + 0.06);
+    oscGain.gain.setValueAtTime(0.08, time);
+    oscGain.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
+    
+    osc.connect(oscGain);
+    oscGain.connect(this.sfxGain || this.ctx.destination);
+    osc.start(time);
+    osc.stop(time + 0.06);
+  }
+
+  // 5. Highpass Hat
+  playHihat(time) {
+    const bufferSize = this.ctx.sampleRate * 0.03;
+    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    
+    const noise = this.ctx.createBufferSource();
+    noise.buffer = buffer;
+    
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.setValueAtTime(7000, time);
+    
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.04, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.035);
+    
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.sfxGain || this.ctx.destination);
+    
+    noise.start(time);
+    noise.stop(time + 0.035);
+  }
+
+  // --- 一次性音效 (One-off Sound Effects) ---
+
   playClick() {
     if (!this.enabled || !this.ctx) return;
     const now = this.ctx.currentTime;
@@ -521,16 +800,15 @@ class AudioEngine {
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
 
     osc.connect(gain);
-    gain.connect(this.ctx.destination);
+    gain.connect(this.sfxGain || this.ctx.destination);
     osc.start();
     osc.stop(now + 0.08);
   }
 
-  // 3. 劍魂覺醒 (水晶風鈴聲)
   playSwordChime() {
     if (!this.enabled || !this.ctx) return;
     const now = this.ctx.currentTime;
-    const freqs = [880, 1320, 1760, 2640]; // 高頻諧音
+    const freqs = [880, 1320, 1760, 2640];
 
     freqs.forEach((f, idx) => {
       const osc = this.ctx.createOscillator();
@@ -543,13 +821,12 @@ class AudioEngine {
       gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.05 + 0.6);
 
       osc.connect(gain);
-      gain.connect(this.ctx.destination);
+      gain.connect(this.sfxGain || this.ctx.destination);
       osc.start(now + idx * 0.05);
       osc.stop(now + idx * 0.05 + 0.6);
     });
   }
 
-  // 4. 終極斬擊 (白噪音掃頻)
   playSlash() {
     if (!this.enabled || !this.ctx) return;
     const bufferSize = this.ctx.sampleRate * 0.4;
@@ -574,12 +851,11 @@ class AudioEngine {
 
     noise.connect(filter);
     filter.connect(gain);
-    gain.connect(this.ctx.destination);
+    gain.connect(this.sfxGain || this.ctx.destination);
 
     noise.start();
   }
 
-  // 5. 地鳴巨響 (Boss震動低頻)
   playRumble() {
     if (!this.enabled || !this.ctx) return;
     const now = this.ctx.currentTime;
@@ -599,17 +875,16 @@ class AudioEngine {
 
     osc.connect(filter);
     filter.connect(gain);
-    gain.connect(this.ctx.destination);
+    gain.connect(this.sfxGain || this.ctx.destination);
 
     osc.start();
     osc.stop(now + 1.2);
   }
 
-  // 6. 通關音樂
+  // 通關音樂
   playSuccess() {
     if (!this.enabled || !this.ctx) return;
     const now = this.ctx.currentTime;
-    // C和弦琶音 C4 - E4 - G4 - C5
     const notes = [261.63, 329.63, 392.00, 523.25];
     notes.forEach((freq, idx) => {
       const osc = this.ctx.createOscillator();
@@ -622,17 +897,16 @@ class AudioEngine {
       gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.1 + 0.4);
 
       osc.connect(gain);
-      gain.connect(this.ctx.destination);
+      gain.connect(this.sfxGain || this.ctx.destination);
       osc.start(now + idx * 0.1);
       osc.stop(now + idx * 0.1 + 0.4);
     });
   }
 
-  // 7. 失敗音樂
+  // 失敗音樂
   playFailure() {
     if (!this.enabled || !this.ctx) return;
     const now = this.ctx.currentTime;
-    // 降和弦降音 B4 - Gb4 - Eb4 - C4 減音程
     const notes = [493.88, 369.99, 311.13, 261.63];
     notes.forEach((freq, idx) => {
       const osc = this.ctx.createOscillator();
@@ -650,7 +924,7 @@ class AudioEngine {
 
       osc.connect(filter);
       filter.connect(gain);
-      gain.connect(this.ctx.destination);
+      gain.connect(this.sfxGain || this.ctx.destination);
       osc.start(now + idx * 0.15);
       osc.stop(now + idx * 0.15 + 0.5);
     });
@@ -709,7 +983,7 @@ const IntroController = {
   start() {
     this.currentIndex = 0;
     this.showSlide();
-    audio.playAmbient();
+    audio.playCurrentTrack();
   },
 
   showSlide() {
@@ -783,7 +1057,6 @@ const IntroController = {
   finish() {
     clearTimeout(this.timer);
     document.getElementById('intro-title-screen').classList.add('hidden');
-    audio.stopAmbient();
     switchView('map');
   }
 };
@@ -1088,7 +1361,112 @@ const StageController = {
   }
 };
 
-// ──────────────── 7. 畫面切換與初始化 ────────────────
+// ──────────────── 7. 音樂與音效 UI 控制與互動 ────────────────
+
+// 更新音波動畫狀態
+function updateWaveAnimation(isPlaying) {
+  const container = document.querySelector('.music-wave-container');
+  if (container) {
+    if (isPlaying && audio.enabled) {
+      container.classList.add('playing');
+    } else {
+      container.classList.remove('playing');
+    }
+  }
+}
+
+// 切換自訂音樂輸入區域的顯示狀態
+function toggleCustomMusicSections(val) {
+  const uploadSection = document.getElementById('music-upload-section');
+  const urlSection = document.getElementById('music-url-section');
+  if (val === 'custom') {
+    uploadSection.classList.remove('hidden');
+    urlSection.classList.remove('hidden');
+  } else {
+    uploadSection.classList.add('hidden');
+    urlSection.classList.add('hidden');
+  }
+}
+
+// 綁定浮動音樂按鈕事件
+document.getElementById('floating-music-btn').onclick = () => {
+  audio.playClick();
+  const modal = document.getElementById('music-settings-modal');
+  modal.classList.remove('hidden');
+  
+  // 同步面板控制元件狀態
+  document.getElementById('music-volume-slider').value = audio.volume;
+  document.getElementById('music-track-select').value = audio.trackType === 'synth' ? 'synth' : audio.currentTrackSrc;
+  
+  const isPlayingNow = audio.trackType === 'synth' ? audio.isPlaying : audio.isAudioElPlaying;
+  document.getElementById('music-play-pause-btn').innerText = isPlayingNow ? '暫停播放' : '開始播放';
+  
+  toggleCustomMusicSections(document.getElementById('music-track-select').value);
+};
+
+// 關閉音樂面板按鈕
+document.getElementById('music-modal-close').onclick = () => {
+  audio.playClick();
+  document.getElementById('music-settings-modal').classList.add('hidden');
+};
+
+// 主音量拉桿調整
+document.getElementById('music-volume-slider').oninput = (e) => {
+  const val = parseFloat(e.target.value);
+  audio.setVolume(val);
+};
+
+// 切換背景音軌選單
+document.getElementById('music-track-select').onchange = (e) => {
+  audio.playClick();
+  const val = e.target.value;
+  toggleCustomMusicSections(val);
+  
+  if (val !== 'custom') {
+    audio.changeTrack(val);
+  }
+};
+
+// 本地上傳自訂 MP3
+document.getElementById('music-file-input').onchange = (e) => {
+  const file = e.target.files[0];
+  if (file) {
+    document.getElementById('music-file-name').innerText = file.name;
+    const fileUrl = URL.createObjectURL(file);
+    audio.changeTrack(fileUrl);
+    
+    // 更新選單項為 custom
+    document.getElementById('music-track-select').value = 'custom';
+  }
+};
+
+// 貼上自訂音樂網址套用
+document.getElementById('music-url-apply').onclick = () => {
+  audio.playClick();
+  const url = document.getElementById('music-url-input').value.trim();
+  if (url) {
+    audio.changeTrack(url);
+    document.getElementById('music-track-select').value = 'custom';
+  } else {
+    alert("請輸入有效的音樂網址！");
+  }
+};
+
+// 播放/暫停按鈕
+document.getElementById('music-play-pause-btn').onclick = () => {
+  audio.playClick();
+  const isPlayingNow = audio.trackType === 'synth' ? audio.isPlaying : audio.isAudioElPlaying;
+  if (isPlayingNow) {
+    audio.stopCurrentTrack();
+    document.getElementById('music-play-pause-btn').innerText = '開始播放';
+  } else {
+    audio.playCurrentTrack();
+    document.getElementById('music-play-pause-btn').innerText = '暫停播放';
+  }
+};
+
+
+// ──────────────── 8. 畫面切換與初始化 ────────────────
 function switchView(viewId) {
   // 停止所有舊視窗的 active 狀態
   document.querySelectorAll('.view').forEach(view => {
@@ -1105,12 +1483,26 @@ function switchView(viewId) {
   if (viewId === 'map') {
     MapController.render();
   }
+
+  // 控制浮動音樂按鈕的顯示（在開場動畫時隱藏，之後顯示）
+  const floatingMusicBtn = document.getElementById('floating-music-btn');
+  if (floatingMusicBtn) {
+    if (viewId === 'intro') {
+      floatingMusicBtn.classList.add('hidden');
+    } else {
+      floatingMusicBtn.classList.remove('hidden');
+    }
+  }
 }
 
-// 綁定音效與跳過按鈕
+// 綁定過場動畫的開關與跳過按鈕
 document.getElementById('mute-btn').onclick = () => {
   const enabled = audio.toggleMute();
   document.getElementById('mute-btn').innerText = enabled ? '🔊 關聲音' : '🔇 開聲音';
+  
+  // 同步控制面板音量拉桿與音波動畫
+  document.getElementById('music-volume-slider').value = enabled ? audio.volume : 0;
+  updateWaveAnimation(enabled && (audio.trackType === 'synth' ? audio.isPlaying : audio.isAudioElPlaying));
 };
 
 document.getElementById('skip-btn').onclick = () => {
