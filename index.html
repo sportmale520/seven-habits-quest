@@ -16,9 +16,11 @@
     <!-- 1. 震撼過場動畫視窗 (Intro View) -->
     <div id="intro-view" class="view active">
       <div class="intro-container">
-        <!-- 投影片背景層 -->
-        <div id="intro-slides">
-          <!-- 會由 JS 動態生成與切換投影片 -->
+        <!-- 過場 WebM 影片層 (Video Layer) -->
+        <video id="intro-video" src="assets/intro.webm" playsinline muted style="width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0;"></video>
+        
+        <!-- 投影片背景層 (備用/隱藏) -->
+        <div id="intro-slides" class="hidden">
         </div>
         
         <!-- 過場字幕 -->
