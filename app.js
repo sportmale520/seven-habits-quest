@@ -1550,5 +1550,22 @@ document.getElementById('skip-btn').onclick = () => {
 // 進入程式初始化
 window.onload = () => {
   GameState.init();
-  IntroController.start();
+  
+  const startBtn = document.getElementById('autoplay-start-btn');
+  const overlay = document.getElementById('autoplay-overlay');
+  
+  if (startBtn && overlay) {
+    startBtn.onclick = () => {
+      // 1. 初始化音訊引擎與解鎖 AudioContext
+      audio.init();
+      
+      // 2. 隱藏啟動遮罩
+      overlay.classList.add('hidden');
+      
+      // 3. 啟動過場動畫與播放音樂
+      IntroController.start();
+    };
+  } else {
+    IntroController.start();
+  }
 };
