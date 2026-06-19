@@ -16,6 +16,15 @@
     <!-- 1. 震撼過場動畫視窗 (Intro View) -->
     <div id="intro-view" class="view active">
       <div class="intro-container">
+        <!-- 🌌 點擊開始啟動音訊與動畫遮罩 (Autoplay workaround) -->
+        <div id="autoplay-overlay" class="autoplay-overlay">
+          <div class="autoplay-content">
+            <div class="autoplay-logo">心淵：選擇</div>
+            <div class="autoplay-subtitle">實踐七個習慣任務</div>
+            <button id="autoplay-start-btn" class="autoplay-btn">🌌 啟動冒險 (開啟音效)</button>
+          </div>
+        </div>
+
         <!-- 過場 WebM 影片層 (Video Layer) -->
         <video id="intro-video" src="assets/intro.webm" playsinline muted style="width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0;"></video>
         
